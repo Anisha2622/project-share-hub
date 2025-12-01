@@ -1,0 +1,129 @@
+# -------------------------------
+# PersistentVolumeClaim
+# -------------------------------
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sharehub-frontend-pvc
+  namespace: "2401147"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+# -------------------------------
+# Deployment
+# -------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sharehub-frontend-deployment
+  namespace: "2401147"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sharehub-frontend
+  template:
+    metadata:
+      labels:
+        app: sharehub-frontend
+    spec:
+      automountServiceAccountToken: false
+      
+      # Keep this if you are using your college's private registry.
+      # If using Docker Hub public images, you can remove 'imagePullSecrets'.
+      imagePullSecrets:
+        - name: nexus-secret
+
+      containers:
+        - name: sharehub-frontend
+          # Updated to your Docker Hub image
+          image: anisha2622/project-share-hub:latest
+          imagePullPolicy: Always
+
+          ports:
+            - containerPort: 80
+
+          # Readiness Probe: Checks if app is ready to accept traffic
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 10
+
+          # Liveness Probe: Restarts pod if app crashes
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 30
+
+          # Volume mount for static content (Optional)
+          volumeMounts:
+            - name: static-content
+              mountPath: /usr/share/nginx/html/static
+
+          # Resource Limits
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+              ephemeral-storage: "1Gi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+              ephemeral-storage: "2Gi"
+
+      volumes:
+        - name: static-content
+          persistentVolumeClaim:
+            claimName: sharehub-frontend-pvc
+
+---
+# -------------------------------
+# Service
+# -------------------------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: sharehub-frontend-service
+  namespace: "2401147"
+spec:
+  selector:
+    app: sharehub-frontend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: ClusterIP
+
+---
+# -------------------------------
+# Ingress
+# -------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sharehub-frontend-ingress
+  namespace: "2401147"
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: sharehub.imcc.com  # URL to access your app
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: sharehub-frontend-service
+                port:
+                  number: 80
