@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import HRHeader from "@/components/HRHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,29 +8,76 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Upload, Users, Briefcase } from "lucide-react";
-
-const mockJobs = [
-  { id: 1, title: "Python Developer", company: "Anisha Recruiting", posted: "9/28/2025", applicants: 3, accepted: 0, rejected: 0 },
-  { id: 2, title: "Software Developer", company: "ABC", posted: "9/20/2025", applicants: 5, accepted: 1, rejected: 1 },
-];
-
-const mockApplications = [
-  { id: 1, name: "Anisha Pawar", job: "Python Developer", score: 78, status: "pending" },
-  { id: 2, name: "Sid", job: "Python Developer", score: null, status: "pending" },
-  { id: 3, name: "Siddhi Kawade", job: "Python Developer", score: null, status: "pending" },
-];
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Upload, Users, Briefcase, Trash2, Loader2 } from "lucide-react";
+import { useHRDashboard } from "@/hooks/useHRDashboard";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 
 const HRDashboard = () => {
+  const navigate = useNavigate();
+  const {
+    user,
+    jobs,
+    applications,
+    stats,
+    jobsLoading,
+    applicationsLoading,
+    createJob,
+    deleteJob,
+    updateApplicationStatus,
+    getJobApplicantCounts,
+  } = useHRDashboard();
+
   const [skills, setSkills] = useState<string[]>([]);
   const [skillInput, setSkillInput] = useState("");
+  const [formData, setFormData] = useState({
+    company: "",
+    title: "",
+    experience: "",
+    description: "",
+  });
 
   const addSkill = () => {
-    if (skillInput.trim()) {
+    if (skillInput.trim() && !skills.includes(skillInput.trim())) {
       setSkills([...skills, skillInput.trim()]);
       setSkillInput("");
     }
   };
+
+  const removeSkill = (skillToRemove: string) => {
+    setSkills(skills.filter(s => s !== skillToRemove));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await createJob.mutateAsync({
+      title: formData.title,
+      company_name: formData.company,
+      description: formData.description,
+      experience_required: formData.experience,
+      skills,
+    });
+    // Reset form
+    setFormData({ company: "", title: "", experience: "", description: "" });
+    setSkills([]);
+  };
+
+  const handleDownloadResume = async (resumeUrl: string | null) => {
+    if (!resumeUrl) return;
+    const { data } = await supabase.storage.from("resumes").createSignedUrl(resumeUrl, 60);
+    if (data?.signedUrl) {
+      window.open(data.signedUrl, "_blank");
+    }
+  };
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
@@ -53,7 +101,7 @@ const HRDashboard = () => {
                   <Briefcase className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{mockJobs.length}</div>
+                  <div className="text-2xl font-bold">{stats.totalJobs}</div>
                 </CardContent>
               </Card>
               <Card>
@@ -62,16 +110,16 @@ const HRDashboard = () => {
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{mockApplications.length}</div>
+                  <div className="text-2xl font-bold">{stats.totalApplicants}</div>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Accepted</CardTitle>
-                  <Users className="h-4 w-4 text-success" />
+                  <Users className="h-4 w-4 text-green-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">1</div>
+                  <div className="text-2xl font-bold">{stats.accepted}</div>
                 </CardContent>
               </Card>
             </div>
@@ -81,26 +129,51 @@ const HRDashboard = () => {
                 <CardTitle>Your Job Postings</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {mockJobs.map((job) => (
-                    <Card key={job.id}>
-                      <CardContent className="pt-6">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h3 className="font-semibold text-lg">{job.title}</h3>
-                            <p className="text-sm text-muted-foreground">{job.company}</p>
-                            <p className="text-xs text-muted-foreground mt-1">Posted on: {job.posted}</p>
-                          </div>
-                          <div className="text-right space-y-1">
-                            <p className="text-sm"><span className="font-medium">{job.applicants}</span> Applicants</p>
-                            <p className="text-sm text-success"><span className="font-medium">{job.accepted}</span> Accepted</p>
-                            <p className="text-sm text-destructive"><span className="font-medium">{job.rejected}</span> Rejected</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                {jobsLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  </div>
+                ) : jobs.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">
+                    No job postings yet. Create your first job!
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {jobs.map((job) => {
+                      const counts = getJobApplicantCounts(job.id);
+                      return (
+                        <Card key={job.id}>
+                          <CardContent className="pt-6">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h3 className="font-semibold text-lg">{job.title}</h3>
+                                <p className="text-sm text-muted-foreground">{job.company_name}</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Posted on: {job.created_at ? format(new Date(job.created_at), "MM/dd/yyyy") : "N/A"}
+                                </p>
+                              </div>
+                              <div className="flex items-start gap-4">
+                                <div className="text-right space-y-1">
+                                  <p className="text-sm"><span className="font-medium">{counts.total}</span> Applicants</p>
+                                  <p className="text-sm text-green-600"><span className="font-medium">{counts.accepted}</span> Accepted</p>
+                                  <p className="text-sm text-destructive"><span className="font-medium">{counts.rejected}</span> Rejected</p>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => deleteJob.mutate(job.id)}
+                                  disabled={deleteJob.isPending}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -112,18 +185,35 @@ const HRDashboard = () => {
                 <CardDescription>Post a new job opening for candidates</CardDescription>
               </CardHeader>
               <CardContent>
-                <form className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="company">Company Name</Label>
-                    <Input id="company" placeholder="Enter company name" />
+                    <Input
+                      id="company"
+                      placeholder="Enter company name"
+                      value={formData.company}
+                      onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                      required
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="title">Job Title</Label>
-                    <Input id="title" placeholder="e.g., Senior Software Engineer" />
+                    <Input
+                      id="title"
+                      placeholder="e.g., Senior Software Engineer"
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      required
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="experience">Experience (e.g., 2-4 years)</Label>
-                    <Input id="experience" placeholder="Required experience" />
+                    <Input
+                      id="experience"
+                      placeholder="Required experience"
+                      value={formData.experience}
+                      onChange={(e) => setFormData({ ...formData, experience: e.target.value })}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Skills Required</Label>
@@ -140,7 +230,14 @@ const HRDashboard = () => {
                     </div>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {skills.map((skill, i) => (
-                        <Badge key={i} variant="secondary">{skill}</Badge>
+                        <Badge
+                          key={i}
+                          variant="secondary"
+                          className="cursor-pointer"
+                          onClick={() => removeSkill(skill)}
+                        >
+                          {skill} ×
+                        </Badge>
                       ))}
                     </div>
                   </div>
@@ -150,10 +247,17 @@ const HRDashboard = () => {
                       id="description"
                       placeholder="Describe the role, responsibilities, and requirements..."
                       rows={6}
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      required
                     />
                   </div>
-                  <Button type="submit" className="w-full">
-                    <Plus className="w-4 h-4 mr-2" />
+                  <Button type="submit" className="w-full" disabled={createJob.isPending}>
+                    {createJob.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Plus className="w-4 h-4 mr-2" />
+                    )}
                     Create Job
                   </Button>
                 </form>
@@ -170,12 +274,18 @@ const HRDashboard = () => {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="job-select">Select Job</Label>
-                  <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2">
-                    <option>--Please choose a job--</option>
-                    {mockJobs.map((job) => (
-                      <option key={job.id}>{job.title}</option>
-                    ))}
-                  </select>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="--Please choose a job--" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {jobs.map((job) => (
+                        <SelectItem key={job.id} value={job.id}>
+                          {job.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="resumes">Upload Resumes (up to 10)</Label>
@@ -195,29 +305,62 @@ const HRDashboard = () => {
                 <CardTitle>Candidate Applications</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {mockApplications.map((app) => (
-                    <Card key={app.id}>
-                      <CardContent className="pt-6">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <h3 className="font-semibold">{app.name}</h3>
-                            <p className="text-sm text-muted-foreground">{app.job}</p>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <div className="text-right">
-                              <p className="text-xs text-muted-foreground">ATS Score</p>
-                              <p className="text-lg font-bold text-primary">
-                                {app.score ? app.score : "N/A"}
-                              </p>
+                {applicationsLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  </div>
+                ) : applications.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">
+                    No applications yet.
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {applications.map((app) => (
+                      <Card key={app.id}>
+                        <CardContent className="pt-6">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <h3 className="font-semibold">{app.candidate_name}</h3>
+                              <p className="text-sm text-muted-foreground">{app.job_title}</p>
                             </div>
-                            <Button variant="outline" size="sm">Download Resume</Button>
+                            <div className="flex items-center gap-4">
+                              <div className="text-right">
+                                <p className="text-xs text-muted-foreground">ATS Score</p>
+                                <p className="text-lg font-bold text-primary">
+                                  {app.ats_score ?? "N/A"}
+                                </p>
+                              </div>
+                              <Select
+                                defaultValue={app.status || "Applied"}
+                                onValueChange={(value) =>
+                                  updateApplicationStatus.mutate({ applicationId: app.id, status: value })
+                                }
+                              >
+                                <SelectTrigger className="w-32">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Applied">Applied</SelectItem>
+                                  <SelectItem value="Reviewing">Reviewing</SelectItem>
+                                  <SelectItem value="Accepted">Accepted</SelectItem>
+                                  <SelectItem value="Rejected">Rejected</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDownloadResume(app.resume_url)}
+                                disabled={!app.resume_url}
+                              >
+                                Download Resume
+                              </Button>
+                            </div>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
