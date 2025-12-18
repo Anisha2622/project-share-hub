@@ -1,5 +1,138 @@
+# # # -------------------------------
+# # # PersistentVolumeClaim
+# # # -------------------------------
+# # apiVersion: v1
+# # kind: PersistentVolumeClaim
+# # metadata:
+# #   name: job-fit-frontend-pvc
+# #   namespace: "2401157"
+# # spec:
+# #   accessModes:
+# #     - ReadWriteOnce
+# #   resources:
+# #     requests:
+# #       storage: 1Gi
+
+# # ---
+# # # -------------------------------
+# # # Deployment
+# # # -------------------------------
+# # apiVersion: apps/v1
+# # kind: Deployment
+# # metadata:
+# #   name: job-fit-frontend-deployment
+# #   namespace: "2401157"
+# # spec:
+# #   replicas: 1
+# #   selector:
+# #     matchLabels:
+# #       app: job-fit-frontend
+# #   template:
+# #     metadata:
+# #       labels:
+# #         app: job-fit-frontend
+# #     spec:
+# #       automountServiceAccountToken: false
+      
+# #       # Required to pull from your private Nexus registry
+# #       imagePullSecrets:
+# #         - name: nexus-secret
+
+      
+      
+# #       containers:
+# #         - name: music-frontend
+# #           image: 127.0.0.1:30085/2401157-project/job-fit-frontend:latest
+# #           imagePullPolicy: Always
+      
+   
+
+# #           ports:
+# #             - containerPort: 80
+
+# #           # Readiness Probe: Checks if app is ready to accept traffic
+# #           readinessProbe:
+# #             httpGet:
+# #               path: /
+# #               port: 80
+# #             initialDelaySeconds: 10
+# #             periodSeconds: 10
+
+# #           # Liveness Probe: Restarts pod if app crashes
+# #           livenessProbe:
+# #             httpGet:
+# #               path: /
+# #               port: 80
+# #             initialDelaySeconds: 30
+# #             periodSeconds: 30
+
+# #           # Volume mount for static content (Optional)
+# #           volumeMounts:
+# #             - name: static-content
+# #               mountPath: /usr/share/nginx/html/static
+
+# #           # Resource Limits
+# #           resources:
+# #             requests:
+# #               cpu: "100m"
+# #               memory: "128Mi"
+# #               ephemeral-storage: "1Gi"
+# #             limits:
+# #               cpu: "500m"
+# #               memory: "512Mi"
+# #               ephemeral-storage: "2Gi"
+
+# #       volumes:
+# #         - name: static-content
+# #           persistentVolumeClaim:
+# #             claimName: job-fit-frontend-pvc
+
+# # ---
+# # # -------------------------------
+# # # Service
+# # # -------------------------------
+# # apiVersion: v1
+# # kind: Service
+# # metadata:
+# #   name: job-fit-frontend-service
+# #   namespace: "2401157"
+# # spec:
+# #   selector:
+# #     app: job-fit-frontend
+# #   ports:
+# #     - protocol: TCP
+# #       port: 80
+# #       targetPort: 80
+# #   type: ClusterIP
+
+# # ---
+# # # -------------------------------
+# # # Ingress
+# # # -------------------------------
+# # apiVersion: networking.k8s.io/v1
+# # kind: Ingress
+# # metadata:
+# #   name: job-fit-frontend-ingress
+# #   namespace: "2401157"
+# #   annotations:
+# #     nginx.ingress.kubernetes.io/rewrite-target: /
+# # spec:
+# #   ingressClassName: nginx
+# #   rules:
+# #     - host: jobfit.imcc.com
+# #       http:
+# #         paths:
+# #           - path: /
+# #             pathType: Prefix
+# #             backend:
+# #               service:
+# #                 name: job-fit-frontend-service
+# #                 port:
+# #                   number: 80
+
+
 # # -------------------------------
-# # PersistentVolumeClaim
+# # 1. PersistentVolumeClaim
 # # -------------------------------
 # apiVersion: v1
 # kind: PersistentVolumeClaim
@@ -7,6 +140,7 @@
 #   name: job-fit-frontend-pvc
 #   namespace: "2401157"
 # spec:
+#   storageClassName: local-path
 #   accessModes:
 #     - ReadWriteOnce
 #   resources:
@@ -15,7 +149,7 @@
 
 # ---
 # # -------------------------------
-# # Deployment
+# # 2. Deployment
 # # -------------------------------
 # apiVersion: apps/v1
 # kind: Deployment
@@ -33,24 +167,20 @@
 #         app: job-fit-frontend
 #     spec:
 #       automountServiceAccountToken: false
-      
-#       # Required to pull from your private Nexus registry
+
+#       # Pull image from Nexus
 #       imagePullSecrets:
 #         - name: nexus-secret
 
-      
-      
 #       containers:
-#         - name: music-frontend
+#         - name: job-fit-frontend
 #           image: 127.0.0.1:30085/2401157-project/job-fit-frontend:latest
 #           imagePullPolicy: Always
-      
-   
 
 #           ports:
 #             - containerPort: 80
 
-#           # Readiness Probe: Checks if app is ready to accept traffic
+#           # Readiness Probe
 #           readinessProbe:
 #             httpGet:
 #               path: /
@@ -58,7 +188,7 @@
 #             initialDelaySeconds: 10
 #             periodSeconds: 10
 
-#           # Liveness Probe: Restarts pod if app crashes
+#           # Liveness Probe
 #           livenessProbe:
 #             httpGet:
 #               path: /
@@ -66,7 +196,7 @@
 #             initialDelaySeconds: 30
 #             periodSeconds: 30
 
-#           # Volume mount for static content (Optional)
+#           # Mount local storage
 #           volumeMounts:
 #             - name: static-content
 #               mountPath: /usr/share/nginx/html/static
@@ -89,7 +219,7 @@
 
 # ---
 # # -------------------------------
-# # Service
+# # 3. Service
 # # -------------------------------
 # apiVersion: v1
 # kind: Service
@@ -107,7 +237,7 @@
 
 # ---
 # # -------------------------------
-# # Ingress
+# # 4. Ingress
 # # -------------------------------
 # apiVersion: networking.k8s.io/v1
 # kind: Ingress
@@ -129,6 +259,7 @@
 #                 name: job-fit-frontend-service
 #                 port:
 #                   number: 80
+
 
 
 # -------------------------------
@@ -168,7 +299,6 @@ spec:
     spec:
       automountServiceAccountToken: false
 
-      # Pull image from Nexus
       imagePullSecrets:
         - name: nexus-secret
 
@@ -180,7 +310,7 @@ spec:
           ports:
             - containerPort: 80
 
-          # Readiness Probe
+          # Readiness Probe (controls traffic)
           readinessProbe:
             httpGet:
               path: /
@@ -188,7 +318,7 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 10
 
-          # Liveness Probe
+          # Liveness Probe (self-healing)
           livenessProbe:
             httpGet:
               path: /
@@ -196,12 +326,11 @@ spec:
             initialDelaySeconds: 30
             periodSeconds: 30
 
-          # Mount local storage
+          # ✅ SAFE PVC MOUNT (DOES NOT OVERRIDE NGINX ROOT)
           volumeMounts:
             - name: static-content
-              mountPath: /usr/share/nginx/html/static
+              mountPath: /app/static
 
-          # Resource Limits
           resources:
             requests:
               cpu: "100m"
