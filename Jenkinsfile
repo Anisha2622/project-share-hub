@@ -50,7 +50,7 @@ spec:
     
     environment {
         // REPLACE THESE WITH YOUR ACTUAL PROJECT SHARE HUB KEYS
-        VITE_SUPABASE_PUBLISHABLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3dGh6dXZwdXNmYXdtaGhsend3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1NzYyMjgsImV4cCI6MjA4MDE1MjIyOH0.yzU2fdrX3L9NrTo1WPAXSa-j7ZtuAAA1mPJmYJnHUyQ"
+        VITE_SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3dGh6dXZwdXNmYXdtaGhsend3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1NzYyMjgsImV4cCI6MjA4MDE1MjIyOH0.yzU2fdrX3L9NrTo1WPAXSa-j7ZtuAAA1mPJmYJnHUyQ"
         VITE_SUPABASE_URL="https://vwthzuvpusfawmhhlzww.supabase.co"
     }
 
@@ -123,10 +123,10 @@ spec:
             steps {
                 container('kubectl') {
                     // Assumes you created a 'k8s' folder with 'deployment.yaml' inside it
-                    dir('k8s') {
-                        sh '''
-                            kubectl apply -f deployment.yaml -n 2401157
-                        '''
+                   dir('k8s-deployment') {
+                   sh '''
+                      kubectl apply -f deployment.yaml -n 2401157
+                    '''
                     }
                 }
             }
