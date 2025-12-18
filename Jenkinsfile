@@ -187,7 +187,7 @@ spec:
 
     environment {
         VITE_SUPABASE_URL="https://vwthzuvpusfawmhhlzww.supabase.co"
-        VITE_SUPABASE_ANON_KEY="YOUR_KEY"
+        VITE_SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd1YW16ZXNlcHRic2xrdXJnc3VsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1ODI0MjEsImV4cCI6MjA4MDE1ODQyMX0.BfGNcplht5XdBcp8X0H2dYMj6DUvp1bxR9KAHnbU1gc"
 
         IMAGE_NAME = "project-share-hub"
         IMAGE_TAG  = "latest"
